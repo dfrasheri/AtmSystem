@@ -1,0 +1,6 @@
+*.class
+.gradle/
+AppData/
+node_modules/
+*.log
+/target/
