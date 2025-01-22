@@ -1,0 +1,151 @@
+package com.mycompany.atmmanagementsys;
+
+import javafx.application.Platform;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TextArea;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.concurrent.CountDownLatch;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class UserNameTest {
+
+
+    private AccountInfoController controller;
+
+    // Mocked dependencies
+    private static Connection mockConnection;
+    private static PreparedStatement mockPreparedStatement;
+    private static ResultSet mockResultSet;
+
+    // Static mock for DbConnection
+    private static MockedStatic<DbConnection> mockedDbConnection;
+
+    @BeforeAll
+    static void initToolkitAndStaticMocks() throws InterruptedException {
+        // Initialize JavaFX Toolkit once globally for all tests
+        CountDownLatch latch = new CountDownLatch(1);
+        Platform.startup(latch::countDown);
+        latch.await();
+
+        // Set up static mocking for DbConnection
+        mockedDbConnection = mockStatic(DbConnection.class);
+        mockConnection = mock(Connection.class);
+        mockPreparedStatement = mock(PreparedStatement.class);
+        mockResultSet = mock(ResultSet.class);
+
+        // Mock DbConnection.Connection() behavior to return the mocked connection
+        mockedDbConnection.when(DbConnection::Connection).thenReturn(mockConnection);
+    }
+
+    @BeforeEach
+    void setupController() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        // Initialize controller and UI components on JavaFX thread
+        Platform.runLater(() -> {
+            controller = new AccountInfoController();
+            controller.setUname(new TextField());
+            controller.setUaddress(new TextArea());
+            controller.setUemail(new TextField());
+            controller.setUphone(new TextField());
+            controller.setUbalance(new TextField());
+            latch.countDown();
+        });
+
+        latch.await();
+    }
+
+    @AfterAll
+    static void closeStaticMocks() {
+        mockedDbConnection.close();
+    }
+
+    // Equivalence Class Testing (ECT) for UserName
+    @Test
+    void testValidUserName() throws Exception {
+        controller.UserID = "1";
+
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true); // Mock ResultSet with a valid record
+        when(mockResultSet.getString("name")).thenReturn("John Doe");
+
+        CountDownLatch latch = new CountDownLatch(1);
+
+        Platform.runLater(() -> {
+            try {
+                controller.AccountInfo(null);
+            } catch (Exception e) {
+                fail("No exception should be thrown for a valid user name.");
+            }
+
+            assertEquals("John Doe", controller.getUname().getText());
+
+            latch.countDown();
+        });
+
+        latch.await();
+    }
+
+    @Test
+    void testInvalidUserName() throws Exception {
+        controller.UserID = "1";
+
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true); // Mock ResultSet with a valid record
+        when(mockResultSet.getString("name")).thenReturn("");
+
+        CountDownLatch latch = new CountDownLatch(1);
+
+        Platform.runLater(() -> {
+            try {
+                controller.AccountInfo(null);
+            } catch (Exception e) {
+                fail("No exception should be thrown for an invalid user name.");
+            }
+
+            assertEquals("", controller.getUname().getText());
+
+            latch.countDown();
+        });
+
+        latch.await();
+    }
+
+    @Test
+    void testEmptyUserName() throws Exception {
+        controller.UserID = "1";
+
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true); // Mock ResultSet with a valid record
+        when(mockResultSet.getString("name")).thenReturn(null);
+
+        CountDownLatch latch = new CountDownLatch(1);
+
+        Platform.runLater(() -> {
+            try {
+                controller.AccountInfo(null);
+            } catch (Exception e) {
+                fail("No exception should be thrown for an empty user name.");
+            }
+
+            assertEquals("", controller.getUname().getText());
+
+            latch.countDown();
+        });
+
+        latch.await();
+    }
+}
