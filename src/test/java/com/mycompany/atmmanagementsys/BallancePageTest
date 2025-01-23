@@ -1,0 +1,192 @@
+package com.mycompany.atmmanagementsys;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.concurrent.CountDownLatch;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
+import javafx.application.Platform;
+import javafx.scene.control.TextField;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextArea;
+
+public class BalancePageTest {
+    private static BalancePageController controller;
+    private static Connection mockConnection;
+    private static PreparedStatement mockPreparedStatement;
+    private static ResultSet mockResultSet;
+    private static MockedStatic<DbConnection> mockedDbConnection;
+    private static CountDownLatch latch;
+
+    @BeforeAll
+    static void setUp() throws Exception {
+        mockConnection = mock(Connection.class);
+        mockPreparedStatement = mock(PreparedStatement.class);
+        mockResultSet = mock(ResultSet.class);
+        mockedDbConnection = Mockito.mockStatic(DbConnection.class);
+        mockedDbConnection.when(DbConnection::Connection).thenReturn(mockConnection);
+
+        latch = new CountDownLatch(1);
+
+        // Initialize controller and UI components on JavaFX thread
+        Platform.runLater(() -> {
+            controller = new BalancePageController();
+            controller.trnasamount = new TextField();
+            controller.receiverid = new TextField();
+            controller.balanceinfo = new TextField();
+            controller.quotedisbp = new TextArea();
+            controller.depositamount = new TextField();
+            controller.withdrawamount = new TextField();
+            latch.countDown();
+        });
+
+        latch.await();
+    }
+
+    @Test
+    void testTransferMoney_EmptyOrInvalidInput() throws Exception {
+        // Test for empty transfer amount
+        controller.trnasamount.setText("");
+        controller.receiverid.setText("receiver");
+        controller.getRetypepass().setText("password");
+        CountDownLatch latch = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                controller.TransferMoney(null);
+                assertEquals("Please Fill Up Everything Correctly.", controller.getTransferconf().getText());
+            } catch (Exception e) {
+                fail("No exception should be thrown for empty transfer amount.");
+            } finally {
+                latch.countDown();
+            }
+        });
+        latch.await();
+
+        // Test for negative transfer amount
+        controller.trnasamount.setText("-100");
+        CountDownLatch latch2 = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                controller.TransferMoney(null);
+                assertEquals("Please Fill Up Everything Correctly.", controller.getTransferconf().getText());
+            } catch (Exception e) {
+                fail("No exception should be thrown for negative transfer amount.");
+            } finally {
+                latch2.countDown();
+            }
+        });
+        latch2.await();
+
+        // Test for empty retype password
+        controller.trnasamount.setText("100");
+        controller.getRetypepass().setText("");
+        CountDownLatch latch3 = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                controller.TransferMoney(null);
+                assertEquals("Please Fill Up Everything Correctly.", controller.getTransferconf().getText());
+            } catch (Exception e) {
+                fail("No exception should be thrown for empty retype password.");
+            } finally {
+                latch3.countDown();
+            }
+        });
+        latch3.await();
+
+        // Test for empty receiver ID
+        controller.getRetypepass().setText("password");
+        controller.receiverid.setText("");
+        CountDownLatch latch4 = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                controller.TransferMoney(null);
+                assertEquals("Please Fill Up Everything Correctly.", controller.getTransferconf().getText());
+            } catch (Exception e) {
+                fail("No exception should be thrown for empty receiver ID.");
+            } finally {
+                latch4.countDown();
+            }
+        });
+        latch4.await();
+    }
+
+    @Test
+    void testTransferMoney_InsufficientBalance() throws Exception {
+        controller.UserID = "1";
+        controller.trnasamount.setText("1000");
+        controller.getRetypepass().setText("password");
+        controller.receiverid.setText("receiver");
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true);
+        when(mockResultSet.getInt("balance")).thenReturn(500);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                controller.TransferMoney(null);
+                assertEquals("You Dont Have Enough Money To Transfer.", controller.getTransferconf().getText());
+            } catch (Exception e) {
+                fail("No exception should be thrown for insufficient balance.");
+            } finally {
+                latch.countDown();
+            }
+        });
+        latch.await();
+    }
+
+    @Test
+    void testTransferMoney_SufficientBalance() throws Exception {
+        controller.UserID = "1";
+        controller.trnasamount.setText("100");
+        controller.getRetypepass().setText("password");
+        controller.receiverid.setText("receiver");
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true);
+        when(mockResultSet.getInt("balance")).thenReturn(500);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                controller.TransferMoney(null);
+                assertEquals("Transaction Successful", controller.getTransferconf().getText());
+            } catch (Exception e) {
+                fail("No exception should be thrown for sufficient balance.");
+            } finally {
+                latch.countDown();
+            }
+        });
+        latch.await();
+    }
+
+    @Test
+    void testTransferMoney_SQLException() throws Exception {
+        controller.UserID = "1";
+        controller.trnasamount.setText("100");
+        controller.getRetypepass().setText("password");
+        controller.receiverid.setText("receiver");
+        when(mockConnection.prepareStatement(anyString())).thenThrow(new SQLException());
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                controller.TransferMoney(null);
+                assertEquals("Invalid Database Or Number Format", controller.getTransferconf().getText());
+            } catch (Exception e) {
+                fail("No exception should be thrown for SQLException.");
+            } finally {
+                latch.countDown();
+            }
+        });
+        latch.await();
+    }
+}
