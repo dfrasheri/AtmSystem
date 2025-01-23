@@ -22,22 +22,17 @@ class AccountInfoTest {
 
     private AccountInfoController controller;
 
-    // Mocked dependencies
     private static Connection mockConnection;
     private static PreparedStatement mockPreparedStatement;
     private static ResultSet mockResultSet;
 
-    // Static mock for DbConnection
     private static MockedStatic<DbConnection> mockedDbConnection;
-
     @BeforeAll
     static void initToolkitAndStaticMocks() throws InterruptedException {
-        // Initialize JavaFX Toolkit once globally for all tests
         CountDownLatch latch = new CountDownLatch(1);
         Platform.startup(latch::countDown);
         latch.await();
 
-        // Set up static mocking for DbConnection
         mockedDbConnection = mockStatic(DbConnection.class);
         mockConnection = mock(Connection.class);
         mockPreparedStatement = mock(PreparedStatement.class);
@@ -51,7 +46,6 @@ class AccountInfoTest {
     void setupController() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
 
-        // Initialize controller and UI components on JavaFX thread
         Platform.runLater(() -> {
             controller = new AccountInfoController();
             controller.setUname(new TextField());
