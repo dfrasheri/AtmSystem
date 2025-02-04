@@ -1,0 +1,148 @@
+package com.mycompany.atmmanagementsys;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.concurrent.CountDownLatch;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+
+import javafx.application.Platform;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TextArea;
+
+public class BalancePageControllerTest {
+    private static BalancePageController controller;
+    private static Connection mockConnection;
+    private static PreparedStatement mockPreparedStatement;
+    private static ResultSet mockResultSet;
+    private static MockedStatic<DbConnection> mockedDbConnection;
+    private static CountDownLatch latch;
+
+    @BeforeAll
+    static void setUp() throws Exception {
+        mockConnection = mock(Connection.class);
+        mockPreparedStatement = mock(PreparedStatement.class);
+        mockResultSet = mock(ResultSet.class);
+        mockedDbConnection = Mockito.mockStatic(DbConnection.class);
+        mockedDbConnection.when(DbConnection::Connection).thenReturn(mockConnection);
+
+        latch = new CountDownLatch(1);
+
+        // Initialize controller and UI components on JavaFX thread
+        Platform.runLater(() -> {
+            controller = new BalancePageController();
+            controller.withdrawamount = new TextField();
+            controller.balanceinfo = new TextField();
+            controller.quotedisbp = new TextArea();
+            latch.countDown();
+        });
+
+        latch.await();
+    }
+
+    @Test
+    void testWithdrawMoney_EmptyOrNegativeAmount() throws Exception {
+        // Test for empty amount
+        controller.withdrawamount.setText("");
+        CountDownLatch latch = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                controller.WithdrawMoney(null);
+                assertEquals("Please Enter A Valid Amount", controller.getWithdrawinfo().getText());
+            } catch (Exception e) {
+                fail("No exception should be thrown for empty amount.");
+            } finally {
+                latch.countDown();
+            }
+        });
+        latch.await();
+
+        // Test for negative amount
+        controller.withdrawamount.setText("-100");
+        CountDownLatch latch2 = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                controller.WithdrawMoney(null);
+                assertEquals("Please Enter A Valid Amount", controller.getWithdrawinfo().getText());
+            } catch (Exception e) {
+                fail("No exception should be thrown for negative amount.");
+            } finally {
+                latch2.countDown();
+            }
+        });
+        latch2.await();
+    }
+
+    @Test
+    void testWithdrawMoney_InsufficientBalance() throws Exception {
+        controller.UserID = "1";
+        controller.withdrawamount.setText("1000");
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true);
+        when(mockResultSet.getInt("balance")).thenReturn(500);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                controller.WithdrawMoney(null);
+                assertEquals("Your Account Balance Is Low", controller.getWithdrawinfo().getText());
+            } catch (Exception e) {
+                fail("No exception should be thrown for insufficient balance.");
+            } finally {
+                latch.countDown();
+            }
+        });
+        latch.await();
+    }
+
+    @Test
+    void testWithdrawMoney_SufficientBalance() throws Exception {
+        controller.UserID = "1";
+        controller.withdrawamount.setText("100");
+        when(mockConnection.prepareStatement(anyString())).thenReturn(mockPreparedStatement);
+        when(mockPreparedStatement.executeQuery()).thenReturn(mockResultSet);
+        when(mockResultSet.next()).thenReturn(true);
+        when(mockResultSet.getInt("balance")).thenReturn(500);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                controller.WithdrawMoney(null);
+                assertEquals("Transaction Successful", controller.getWithdrawinfo().getText());
+            } catch (Exception e) {
+                fail("No exception should be thrown for sufficient balance.");
+            } finally {
+                latch.countDown();
+            }
+        });
+        latch.await();
+    }
+
+    @Test
+    void testWithdrawMoney_SQLException() throws Exception {
+        controller.UserID = "1";
+        controller.withdrawamount.setText("100");
+        when(mockConnection.prepareStatement(anyString())).thenThrow(new SQLException());
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                controller.WithdrawMoney(null);
+                assertEquals("An error occurred", controller.getWithdrawinfo().getText());
+            } catch (Exception e) {
+                fail("No exception should be thrown for SQLException.");
+            } finally {
+                latch.countDown();
+            }
+        });
+        latch.await();
+    }
+}
