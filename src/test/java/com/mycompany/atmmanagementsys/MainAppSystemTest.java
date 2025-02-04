@@ -1,3 +1,4 @@
+
 package com.mycompany.atmmanagementsys;
 import org.junit.jupiter.api.Test;
 import org.testfx.framework.junit5.ApplicationTest;
